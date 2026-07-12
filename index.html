@@ -205,13 +205,21 @@ try{
   fbDb = firebase.firestore();
 }catch(e){ console.error('Firebase init', e); }
 
-function signInWithGoogle(){
+async function signInWithGoogle(){
   if(!fbAuth){ toast('La conexión con la nube no cargó, revisa tu internet'); return; }
   const provider = new firebase.auth.GoogleAuthProvider();
-  fbAuth.signInWithRedirect(provider).catch(e=>{
-    console.error('signIn error', e);
-    toast('Error al iniciar sesión: ' + (e.code||e.message||'desconocido'));
-  });
+  try{
+    const result = await fbAuth.signInWithPopup(provider);
+    toast('Sesión iniciada como ' + (result.user.email||''));
+  }catch(e){
+    console.error('popup falló, probando redirect', e);
+    try{
+      await fbAuth.signInWithRedirect(provider);
+    }catch(e2){
+      console.error('signIn error', e2);
+      toast('Error al iniciar sesión: ' + (e2.code||e2.message||'desconocido'));
+    }
+  }
 }
 function signOutGoogle(){
   if(!fbAuth) return;
