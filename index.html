@@ -1688,11 +1688,10 @@ function entRutinaHtml(){
         <button class="iconbtn" style="width:30px;height:30px;flex-shrink:0;" onclick="deleteDay('${d.id}')" aria-label="Eliminar día">${icon('trash')}</button>
       </div>
       ${d.exercises.map(ex=>`
-        <div class="row2" style="grid-template-columns:minmax(0,2fr) minmax(0,0.7fr) minmax(0,0.7fr) minmax(0,0.8fr) auto;gap:6px;margin-bottom:6px;align-items:center;min-width:0;">
+        <div class="row2" style="grid-template-columns:minmax(0,2.2fr) minmax(0,0.9fr) minmax(0,0.9fr) auto;gap:6px;margin-bottom:6px;align-items:center;min-width:0;">
           <input placeholder="Ejercicio" value="${esc(ex.name)}" oninput="updateExField('${d.id}','${ex.id}','name',this.value)" style="font-size:13px;padding:8px 9px;">
           <input placeholder="series" value="${ex.sets||''}" oninput="updateExField('${d.id}','${ex.id}','sets',this.value)" style="font-size:13px;padding:8px 9px;">
           <input placeholder="reps" value="${ex.reps||''}" oninput="updateExField('${d.id}','${ex.id}','reps',this.value)" style="font-size:13px;padding:8px 9px;">
-          <input placeholder="kg" value="${ex.weight||''}" oninput="updateExField('${d.id}','${ex.id}','weight',this.value)" style="font-size:13px;padding:8px 9px;">
           <button class="iconbtn" style="width:30px;height:30px;" onclick="deleteExercise('${d.id}','${ex.id}')" aria-label="Eliminar ejercicio">${icon('x')}</button>
         </div>`).join('')}
       <button class="btn btn-sm" style="margin-top:6px;" onclick="addExercise('${d.id}')">${icon('plus')} Ejercicio</button>
@@ -1752,31 +1751,39 @@ function entHoyHtml(){
   const days = App.data.routines.days;
   if(!days.length) return `<div class="empty card"><span class="serif">Primero crea tu rutina</span>Ve a la pestaña Mi rutina para agregar tus días de entreno.</div>`;
   App.ui.hoyDay = App.ui.hoyDay || days[0].id;
+  App.ui.hoyDate = App.ui.hoyDate || todayISO();
   const day = days.find(d=>d.id===App.ui.hoyDay) || days[0];
-  const today = todayISO();
-  const existingLog = (App.data.workoutLogs||[]).find(l=>l.date===today && l.dayId===day.id);
+  const existingLog = (App.data.workoutLogs||[]).find(l=>l.date===App.ui.hoyDate && l.dayId===day.id);
   return `
-  <div class="field"><label>Día de rutina</label>
-    <select onchange="setHoyDay(this.value)">
-      ${days.map(d=>`<option value="${d.id}" ${d.id===day.id?'selected':''}>${esc(d.name)}</option>`).join('')}
-    </select>
+  <div class="row2">
+    <div class="field"><label>Día de rutina</label>
+      <select onchange="setHoyDay(this.value)">
+        ${days.map(d=>`<option value="${d.id}" ${d.id===day.id?'selected':''}>${esc(d.name)}</option>`).join('')}
+      </select>
+    </div>
+    <div class="field"><label>Fecha</label><input type="date" value="${App.ui.hoyDate}" onchange="setHoyDate(this.value)"></div>
   </div>
+  ${existingLog?`<p style="font-size:12px;color:var(--teal-dark);background:var(--teal-soft);padding:8px 11px;border-radius:10px;margin:0 0 12px;">Ya tienes un registro guardado para este día y fecha — si guardas de nuevo, se actualiza.</p>`:''}
   <div class="card">
     ${day.exercises.length? day.exercises.map((ex,i)=>{
       const saved = existingLog && existingLog.entries[i];
       return `<div style="padding:10px 0;border-bottom:1px solid var(--line-soft);">
         <div style="font-size:13.5px;font-weight:500;margin-bottom:6px;">${esc(ex.name)||'(sin nombre)'} <span style="color:var(--ink-muted);font-weight:400;">${ex.sets&&ex.reps?`· ${ex.sets}x${ex.reps}`:''}</span></div>
         <div class="row3" style="align-items:center;">
-          <input id="hoy_w_${i}" type="number" placeholder="kg usado" value="${saved?saved.weight:(ex.weight||'')}">
+          <input id="hoy_w_${i}" type="number" placeholder="kg usado" value="${saved?saved.weight:''}">
           <input id="hoy_r_${i}" type="number" placeholder="reps" value="${saved?saved.reps:(ex.reps||'')}">
           <label style="display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--ink-soft);"><input id="hoy_d_${i}" type="checkbox" style="width:auto;" ${saved&&saved.done?'checked':''}> hecho</label>
         </div>
       </div>`;
     }).join('') : `<p style="color:var(--ink-muted);font-size:13px;">Este día no tiene ejercicios todavía.</p>`}
-    ${day.exercises.length?`<button class="btn btn-primary btn-block" style="margin-top:14px;" onclick="saveTodayWorkout('${day.id}')">${icon('check')} Guardar entreno de hoy</button>`:''}
+    ${day.exercises.length?`
+      <button class="btn btn-primary btn-block" style="margin-top:14px;" onclick="saveTodayWorkout('${day.id}')">${icon('check')} ${existingLog?'Guardar cambios':'Guardar entreno'}</button>
+      ${existingLog?`<button class="btn btn-danger-outline btn-block" style="margin-top:8px;" onclick="deleteTodayWorkout('${day.id}')">${icon('trash')} Eliminar este registro</button>`:''}
+    `:''}
   </div>`;
 }
 function setHoyDay(id){ App.ui.hoyDay = id; render(); }
+function setHoyDate(val){ App.ui.hoyDate = val || todayISO(); render(); }
 function saveTodayWorkout(dayId){
   const day = App.data.routines.days.find(d=>d.id===dayId);
   const entries = day.exercises.map((ex,i)=>({
@@ -1785,12 +1792,19 @@ function saveTodayWorkout(dayId){
     reps: document.getElementById('hoy_r_'+i).value,
     done: document.getElementById('hoy_d_'+i).checked
   }));
-  const today = todayISO();
+  const date = App.ui.hoyDate || todayISO();
   App.data.workoutLogs = App.data.workoutLogs||[];
-  const idx = App.data.workoutLogs.findIndex(l=>l.date===today && l.dayId===dayId);
-  const record = {id: idx>=0?App.data.workoutLogs[idx].id:uid(), date:today, dayId, dayName:day.name, entries};
+  const idx = App.data.workoutLogs.findIndex(l=>l.date===date && l.dayId===dayId);
+  const record = {id: idx>=0?App.data.workoutLogs[idx].id:uid(), date, dayId, dayName:day.name, entries};
   if(idx>=0) App.data.workoutLogs[idx] = record; else App.data.workoutLogs.push(record);
-  toast('Entreno de hoy guardado');
+  toast('Entreno guardado');
+  render();
+  dbSet('workoutLogs', App.data.workoutLogs);
+}
+function deleteTodayWorkout(dayId){
+  const date = App.ui.hoyDate || todayISO();
+  App.data.workoutLogs = (App.data.workoutLogs||[]).filter(l=>!(l.date===date && l.dayId===dayId));
+  toast('Registro eliminado');
   render();
   dbSet('workoutLogs', App.data.workoutLogs);
 }
