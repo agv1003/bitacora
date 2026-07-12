@@ -206,9 +206,12 @@ try{
 }catch(e){ console.error('Firebase init', e); }
 
 function signInWithGoogle(){
-  if(!fbAuth) return;
+  if(!fbAuth){ toast('La conexión con la nube no cargó, revisa tu internet'); return; }
   const provider = new firebase.auth.GoogleAuthProvider();
-  fbAuth.signInWithRedirect(provider);
+  fbAuth.signInWithRedirect(provider).catch(e=>{
+    console.error('signIn error', e);
+    toast('Error al iniciar sesión: ' + (e.code||e.message||'desconocido'));
+  });
 }
 function signOutGoogle(){
   if(!fbAuth) return;
@@ -235,7 +238,12 @@ async function migrateToCloud(){
   }
 }
 if(fbAuth){
-  fbAuth.getRedirectResult().catch(e=>console.error('redirect result', e));
+  fbAuth.getRedirectResult().then(result=>{
+    if(result && result.user) toast('Sesión iniciada como ' + (result.user.email||''));
+  }).catch(e=>{
+    console.error('redirect result', e);
+    toast('Error al iniciar sesión: ' + (e.code||e.message||'desconocido'));
+  });
   fbAuth.onAuthStateChanged(async (user)=>{
     const changed = (user && !currentUser) || (!user && currentUser);
     currentUser = user;
