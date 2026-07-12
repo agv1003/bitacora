@@ -572,12 +572,48 @@ function accountSectionHtml(){
       <button class="btn btn-danger-outline btn-block" onclick="signOutGoogle()">Cerrar sesión</button>
     </div>`;
   }
+  App.ui.authMode = App.ui.authMode || 'entrar';
   return `<div class="card">
     <p style="font-size:12.5px;color:var(--ink-soft);line-height:1.5;margin:0 0 12px;">
-      Inicia sesión con tu Google para que tus datos se guarden en la nube y se vean iguales en tu celular y tu computador.
+      Crea tu cuenta con correo y contraseña para que tus datos se guarden en la nube y se vean iguales en tu celular y tu computador.
     </p>
-    <button class="btn btn-primary btn-block" onclick="signInWithGoogle()">Iniciar sesión con Google</button>
+    <div style="display:flex;gap:6px;margin-bottom:12px;">
+      <button class="chip chip-outline ${App.ui.authMode==='entrar'?'on':''}" onclick="setAuthMode('entrar')">Ya tengo cuenta</button>
+      <button class="chip chip-outline ${App.ui.authMode==='crear'?'on':''}" onclick="setAuthMode('crear')">Crear cuenta</button>
+    </div>
+    <div class="field"><label>Correo</label><input id="auth_email" type="email" placeholder="tucorreo@gmail.com" autocapitalize="off"></div>
+    <div class="field"><label>Contraseña</label><input id="auth_pass" type="password" placeholder="mínimo 6 caracteres"></div>
+    <button class="btn btn-primary btn-block" style="margin-bottom:10px;" onclick="${App.ui.authMode==='crear'?'signUpEmail()':'signInEmail()'}">${App.ui.authMode==='crear'?'Crear cuenta':'Iniciar sesión'}</button>
+    <p style="text-align:center;font-size:11.5px;color:var(--ink-muted);margin:0 0 10px;">— o —</p>
+    <button class="btn btn-block" onclick="signInWithGoogle()">Continuar con Google</button>
   </div>`;
+}
+function setAuthMode(m){ App.ui.authMode = m; render(); }
+async function signUpEmail(){
+  const email = document.getElementById('auth_email').value.trim();
+  const pass = document.getElementById('auth_pass').value;
+  if(!email || pass.length<6){ toast('Escribe un correo y una contraseña de mínimo 6 caracteres'); return; }
+  try{
+    const result = await fbAuth.createUserWithEmailAndPassword(email, pass);
+    toast('Cuenta creada: ' + result.user.email);
+  }catch(e){
+    console.error('signUp error', e);
+    const msgs = { 'auth/email-already-in-use':'Ese correo ya tiene una cuenta, usa "Ya tengo cuenta"', 'auth/invalid-email':'Correo inválido', 'auth/weak-password':'Contraseña muy débil' };
+    toast(msgs[e.code] || ('Error: ' + (e.code||e.message)));
+  }
+}
+async function signInEmail(){
+  const email = document.getElementById('auth_email').value.trim();
+  const pass = document.getElementById('auth_pass').value;
+  if(!email || !pass){ toast('Escribe tu correo y tu contraseña'); return; }
+  try{
+    const result = await fbAuth.signInWithEmailAndPassword(email, pass);
+    toast('Sesión iniciada: ' + result.user.email);
+  }catch(e){
+    console.error('signIn error', e);
+    const msgs = { 'auth/invalid-credential':'Correo o contraseña incorrectos', 'auth/user-not-found':'No existe una cuenta con ese correo, usa "Crear cuenta"', 'auth/wrong-password':'Contraseña incorrecta' };
+    toast(msgs[e.code] || ('Error: ' + (e.code||e.message)));
+  }
 }
 function bindPerfil(){}
 async function exportBackup(){
