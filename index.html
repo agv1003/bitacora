@@ -1196,9 +1196,17 @@ function viewHabitos(){
 function setHabMode(m){ App.ui.habMode=m; render(); }
 function toggleHabForm(){ App.ui.habNewForm = !App.ui.habNewForm; render(); }
 function habHoyHtml(habits){
-  const today = todayISO();
-  const log = (App.data.habitLogs[today]) || {};
-  let html = `<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;">
+  App.ui.habDate = App.ui.habDate || todayISO();
+  const date = App.ui.habDate;
+  const isToday = date===todayISO();
+  const log = (App.data.habitLogs[date]) || {};
+  let html = `<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+    <button class="iconbtn" onclick="navHabDate(-1)" aria-label="Día anterior">‹</button>
+    <input type="date" value="${date}" max="${todayISO()}" onchange="setHabDate(this.value)" style="flex:1;text-align:center;">
+    <button class="iconbtn" onclick="navHabDate(1)" aria-label="Día siguiente" ${isToday?'disabled style="opacity:.35;"':''}>›</button>
+  </div>
+  ${!isToday?`<p style="font-size:12px;color:var(--teal-dark);background:var(--teal-soft);padding:8px 11px;border-radius:10px;margin:0 0 12px;">Editando ${humanDate(date)} <button onclick="setHabDate('${todayISO()}')" style="background:none;border:none;color:var(--teal-dark);text-decoration:underline;font-size:12px;cursor:pointer;padding:0;margin-left:6px;">volver a hoy</button></p>`:''}
+  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;">
     <button class="btn btn-sm" onclick="toggleHabForm()">${icon('plus')} Nuevo hábito</button>
     <button class="btn btn-sm" onclick="downloadHabitReminders()">${icon('bell')} Descargar recordatorios</button>
   </div>`;
@@ -1334,12 +1342,23 @@ function deleteHabit(id){
   dbSet('habits', App.data.habits);
 }
 function toggleHabit(id, val){
-  const today = todayISO();
-  App.data.habitLogs[today] = App.data.habitLogs[today] || {};
-  if(App.data.habitLogs[today][id]===val) delete App.data.habitLogs[today][id];
-  else App.data.habitLogs[today][id] = val;
+  const date = App.ui.habDate || todayISO();
+  App.data.habitLogs[date] = App.data.habitLogs[date] || {};
+  if(App.data.habitLogs[date][id]===val) delete App.data.habitLogs[date][id];
+  else App.data.habitLogs[date][id] = val;
   render();
   dbSet('habitLogs', App.data.habitLogs);
+}
+function navHabDate(delta){
+  const base = App.ui.habDate || todayISO();
+  const next = addDays(base, delta);
+  App.ui.habDate = next > todayISO() ? todayISO() : next;
+  render();
+}
+function setHabDate(val){
+  const v = val || todayISO();
+  App.ui.habDate = v > todayISO() ? todayISO() : v;
+  render();
 }
 
 /* ============ vista: comida ============ */
